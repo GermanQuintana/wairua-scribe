@@ -1,0 +1,665 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Wairua Scribe · Transcripción local para veterinaria</title>
+<meta name="description" content="Transcribe consultas, clases y conversaciones en tu propio dispositivo. Beta gratuita de Wairua.">
+<meta name="theme-color" content="#05090f">
+<meta name="robots" content="noindex, nofollow">
+<script>try{if(!localStorage.getItem("scribe-invite"))document.documentElement.classList.add("locked")}catch(e){document.documentElement.classList.add("locked")}</script>
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="preload" href="fonts/instrument-serif-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="live.css">
+</head>
+<body>
+<!-- Aviso si se abre como archivo local: los módulos JS no funcionan con file:// -->
+<div id="file-warning" class="file-warning" hidden>
+  <strong>Esta página se ha abierto como archivo local.</strong>
+  El navegador bloquea así la transcripción. En la carpeta del proyecto ejecuta
+  <code>python3 -m http.server 8000</code> y abre <code>http://localhost:8000</code>.
+</div>
+<script>if(location.protocol==='file:')document.getElementById('file-warning').hidden=false</script>
+
+<div class="grain" aria-hidden="true"></div>
+
+<header class="topbar" id="topbar">
+  <a class="brand" href="#top" aria-label="Wairua Scribe">
+    <img class="brand-mark" src="mark.png" alt="" width="46" height="18">
+    <img class="brand-word" src="wordmark.png" alt="Wairua" width="86" height="17">
+    <span class="brand-product">scribe</span>
+    <span class="brand-beta">beta</span>
+  </a>
+  <nav class="topnav">
+    <a href="#how" data-es="Cómo funciona" data-en="How it works">Cómo funciona</a>
+    <a href="#req" data-es="Requisitos" data-en="Requirements">Requisitos</a>
+    <a href="#live" data-es="En directo" data-en="Live">En directo</a>
+    <a href="#science" data-es="Evidencia" data-en="Evidence">Evidencia</a>
+    <a href="#privacy" data-es="Privacidad" data-en="Privacy">Privacidad</a>
+    <button id="lang" class="chip" type="button" aria-label="Change language">EN</button>
+    <a href="#work" class="chip chip-solid" data-es="Transcribir" data-en="Transcribe">Transcribir</a>
+  </nav>
+</header>
+
+<main id="top">
+  <!-- ============ HERO ============ -->
+  <section class="hero" id="hero">
+    <canvas id="soundscape" aria-hidden="true"></canvas>
+    <div class="hero-light" aria-hidden="true"></div>
+    <div class="letterbox top" aria-hidden="true"></div>
+    <div class="letterbox bottom" aria-hidden="true"></div>
+
+    <div class="hero-content">
+      <p class="eyebrow reveal" style="--d:.1s"><span class="rec-dot"></span> <span data-es="Wairua Scribe · Beta local" data-en="Wairua Scribe · Local beta">Wairua Scribe · Beta local</span></p>
+      <h1 class="hero-title" data-es="Cada voz tiene <em>una historia.</em>" data-en="Every voice tells <em>a story.</em>">Cada voz tiene <em>una historia.</em></h1>
+      <p class="hero-sub reveal" style="--d:1.1s" data-es="Transcribe consultas, clases y conversaciones sin que el audio salga de tu dispositivo. Pensado para la clínica veterinaria." data-en="Transcribe consultations, classes and conversations without your audio leaving your device. Built for veterinary practice.">Transcribe consultas, clases y conversaciones sin que el audio salga de tu dispositivo. Pensado para la clínica veterinaria.</p>
+      <div class="hero-actions reveal" style="--d:1.3s">
+        <a class="btn btn-primary" href="#work"><span data-es="Empezar a transcribir" data-en="Start transcribing">Empezar a transcribir</span> <i aria-hidden="true">→</i></a>
+        <a class="btn btn-ghost" href="#how" data-es="Ver cómo funciona" data-en="See how it works">Ver cómo funciona</a>
+      </div>
+    </div>
+
+    <div class="hero-meta reveal" style="--d:1.6s" aria-hidden="true">
+      <span>LOCAL FIRST</span><b>✦</b><span>WHISPER · ONNX</span><b>✦</b><span data-es="HECHO PARA VETERINARIA" data-en="MADE FOR VETERINARY">HECHO PARA VETERINARIA</span>
+    </div>
+    <div class="hero-hint reveal" style="--d:2s" aria-hidden="true"><span data-es="Mueve el cursor sobre la onda" data-en="Move your cursor across the wave">Mueve el cursor sobre la onda</span></div>
+    <a class="scroll-cue" href="#how" aria-label="Bajar"><span></span></a>
+  </section>
+
+  <!-- ============ CÓMO FUNCIONA ============ -->
+  <section class="how" id="how">
+    <header class="section-head">
+      <p class="eyebrow">01 — <span data-es="Proceso" data-en="Process">Proceso</span></p>
+      <h2 data-es="Tres tomas. <em>Ningún servidor.</em>" data-en="Three takes. <em>No server.</em>">Tres tomas. <em>Ningún servidor.</em></h2>
+    </header>
+    <ol class="steps">
+      <li class="step">
+        <span class="step-n">I</span>
+        <h3 data-es="Graba o sube" data-en="Record or upload">Graba o sube</h3>
+        <p data-es="Graba la consulta desde el micrófono o arrastra un audio o vídeo que ya tengas." data-en="Record the consultation with your microphone or drop an existing audio or video file.">Graba la consulta desde el micrófono o arrastra un audio o vídeo que ya tengas.</p>
+      </li>
+      <li class="step">
+        <span class="step-n">II</span>
+        <h3 data-es="Tu equipo escucha" data-en="Your device listens">Tu equipo escucha</h3>
+        <p data-es="Un modelo Whisper se ejecuta dentro del navegador, con la GPU si está disponible o con la CPU." data-en="A Whisper model runs inside the browser, on your GPU when available or on the CPU.">Un modelo Whisper se ejecuta dentro del navegador, con la GPU si está disponible o con la CPU.</p>
+      </li>
+      <li class="step">
+        <span class="step-n">III</span>
+        <h3 data-es="Revisa y exporta" data-en="Review and export">Revisa y exporta</h3>
+        <p data-es="Edita el texto, añade marcas de tiempo y descárgalo en TXT o subtítulos SRT." data-en="Edit the text, add timestamps and download it as TXT or SRT subtitles.">Edita el texto, añade marcas de tiempo y descárgalo en TXT o subtítulos SRT.</p>
+      </li>
+    </ol>
+  </section>
+
+
+  <!-- ============ REQUISITOS ============ -->
+  <section class="req" id="req">
+    <header class="section-head">
+      <p class="eyebrow">02 — <span data-es="Requisitos" data-en="Requirements">Requisitos</span></p>
+      <h2 data-es="Tu navegador, <em>tu estudio.</em>" data-en="Your browser, <em>your studio.</em>">Tu navegador, <em>tu estudio.</em></h2>
+      <p class="section-sub" data-es="Con aceleración por GPU (WebGPU) la transcripción va varias veces más rápida. Sin ella funciona igual, pero con la CPU y más despacio." data-en="With GPU acceleration (WebGPU) transcription runs several times faster. Without it the app still works on the CPU, just slower.">Con aceleración por GPU (WebGPU) la transcripción va varias veces más rápida. Sin ella funciona igual, pero con la CPU y más despacio.</p>
+    </header>
+
+    <div class="req-grid">
+      <article class="check-card" id="check-card" data-state="checking">
+        <p class="eyebrow" data-es="Este dispositivo, ahora" data-en="This device, right now">Este dispositivo, ahora</p>
+        <div class="check-verdict">
+          <span class="check-orb" aria-hidden="true"></span>
+          <div>
+            <h3 id="check-title" data-es="Comprobando…" data-en="Checking…">Comprobando…</h3>
+            <p id="check-text"></p>
+          </div>
+        </div>
+        <dl class="check-facts">
+          <div><dt data-es="Navegador" data-en="Browser">Navegador</dt><dd id="cf-browser">—</dd></div>
+          <div><dt>WebGPU</dt><dd id="cf-gpu">—</dd></div>
+          <div><dt data-es="Tarjeta gráfica" data-en="Graphics">Tarjeta gráfica</dt><dd id="cf-adapter">—</dd></div>
+          <div><dt data-es="Modo recomendado" data-en="Recommended mode">Modo recomendado</dt><dd id="cf-mode">—</dd></div>
+        </dl>
+        <button type="button" class="chip" id="check-again" data-es="Volver a comprobar" data-en="Check again">Volver a comprobar</button>
+      </article>
+
+      <div class="browsers">
+        <table>
+          <thead><tr><th data-es="Navegador" data-en="Browser">Navegador</th><th data-es="GPU (WebGPU)" data-en="GPU (WebGPU)">GPU (WebGPU)</th><th data-es="Valoración" data-en="Rating">Valoración</th></tr></thead>
+          <tbody>
+            <tr class="best"><td><b>Chrome</b> · Windows, Mac</td><td data-es="Sí, versión 113 o posterior" data-en="Yes, version 113+">Sí, versión 113 o posterior</td><td><span class="tag ok" data-es="Recomendado" data-en="Recommended">Recomendado</span></td></tr>
+            <tr class="best"><td><b>Edge</b> · Windows</td><td data-es="Sí, versión 113 o posterior" data-en="Yes, version 113+">Sí, versión 113 o posterior</td><td><span class="tag ok" data-es="Recomendado" data-en="Recommended">Recomendado</span></td></tr>
+            <tr><td><b>Safari</b> · Mac, iPhone, iPad</td><td data-es="Sí, en Safari 26 (macOS Tahoe / iOS 26)" data-en="Yes, Safari 26 (macOS Tahoe / iOS 26)">Sí, en Safari 26 (macOS Tahoe / iOS 26)</td><td><span class="tag mid" data-es="Funciona" data-en="Works">Funciona</span></td></tr>
+            <tr><td><b>Firefox</b></td><td data-es="Windows desde la 141; Mac Apple Silicon desde la 147" data-en="Windows from 141; Apple Silicon Mac from 147">Windows desde la 141; Mac Apple Silicon desde la 147</td><td><span class="tag mid" data-es="Funciona" data-en="Works">Funciona</span></td></tr>
+            <tr><td><b>Chrome</b> · Android</td><td data-es="Sí (Android 12+), según el móvil" data-en="Yes (Android 12+), device-dependent">Sí (Android 12+), según el móvil</td><td><span class="tag low" data-es="Solo audios cortos" data-en="Short clips only">Solo audios cortos</span></td></tr>
+            <tr><td><b>Linux</b></td><td data-es="Parcial; puede requerir ajustes" data-en="Partial; may need flags">Parcial; puede requerir ajustes</td><td><span class="tag low" data-es="Usa CPU" data-en="Use CPU">Usa CPU</span></td></tr>
+          </tbody>
+        </table>
+        <p class="fine" data-es="Equipo recomendado: ordenador con 8 GB de RAM o más. El modelo Small necesita una GPU dedicada o un Mac con chip Apple." data-en="Recommended: a computer with 8 GB RAM or more. The Small model needs a dedicated GPU or an Apple-silicon Mac.">Equipo recomendado: ordenador con 8 GB de RAM o más. El modelo Small necesita una GPU dedicada o un Mac con chip Apple.</p>
+      </div>
+    </div>
+
+    <div class="howto">
+      <article>
+        <span class="card-k">A</span>
+        <h3 data-es="Activa la aceleración en Chrome o Edge" data-en="Turn on acceleration in Chrome or Edge">Activa la aceleración en Chrome o Edge</h3>
+        <ol>
+          <li data-es="Escribe <code>chrome://settings/system</code> en la barra de direcciones (en Edge: <code>edge://settings/system</code>)." data-en="Type <code>chrome://settings/system</code> in the address bar (Edge: <code>edge://settings/system</code>).">Escribe <code>chrome://settings/system</code> en la barra de direcciones (en Edge: <code>edge://settings/system</code>).</li>
+          <li data-es="Activa <b>«Usar aceleración de gráficos cuando esté disponible»</b>." data-en="Turn on <b>“Use graphics acceleration when available”</b>.">Activa <b>«Usar aceleración de gráficos cuando esté disponible»</b>.</li>
+          <li data-es="Pulsa <b>Reiniciar</b> y vuelve a esta página." data-en="Click <b>Relaunch</b> and come back to this page.">Pulsa <b>Reiniciar</b> y vuelve a esta página.</li>
+        </ol>
+      </article>
+      <article>
+        <span class="card-k">B</span>
+        <h3 data-es="Comprueba el estado de WebGPU" data-en="Check WebGPU status">Comprueba el estado de WebGPU</h3>
+        <ol>
+          <li data-es="Abre <code>chrome://gpu</code>." data-en="Open <code>chrome://gpu</code>.">Abre <code>chrome://gpu</code>.</li>
+          <li data-es="En «Graphics Feature Status» busca <b>WebGPU: Hardware accelerated</b>." data-en="Under “Graphics Feature Status” look for <b>WebGPU: Hardware accelerated</b>.">En «Graphics Feature Status» busca <b>WebGPU: Hardware accelerated</b>.</li>
+          <li data-es="Si pone <i>Disabled</i> o <i>Software only</i>, actualiza el controlador gráfico desde la web de NVIDIA, AMD o Intel." data-en="If it says <i>Disabled</i> or <i>Software only</i>, update your graphics driver from NVIDIA, AMD or Intel.">Si pone <i>Disabled</i> o <i>Software only</i>, actualiza el controlador gráfico desde la web de NVIDIA, AMD o Intel.</li>
+        </ol>
+      </article>
+      <article>
+        <span class="card-k">C</span>
+        <h3 data-es="Portátil con dos gráficas (Windows)" data-en="Laptop with two GPUs (Windows)">Portátil con dos gráficas (Windows)</h3>
+        <ol>
+          <li data-es="Configuración de Windows → <b>Sistema → Pantalla → Gráficos</b>." data-en="Windows Settings → <b>System → Display → Graphics</b>.">Configuración de Windows → <b>Sistema → Pantalla → Gráficos</b>.</li>
+          <li data-es="Busca Chrome o Edge → Opciones → <b>Alto rendimiento</b>." data-en="Find Chrome or Edge → Options → <b>High performance</b>.">Busca Chrome o Edge → Opciones → <b>Alto rendimiento</b>.</li>
+          <li data-es="Conecta el cargador: con batería, Windows puede limitar la GPU." data-en="Plug in the charger: on battery Windows may throttle the GPU.">Conecta el cargador: con batería, Windows puede limitar la GPU.</li>
+        </ol>
+      </article>
+    </div>
+  </section>
+
+  <!-- ============ ESPACIO DE TRABAJO ============ -->
+  <section class="work" id="work">
+    <header class="section-head">
+      <p class="eyebrow">03 — <span data-es="Estudio" data-en="Studio">Estudio</span></p>
+      <h2 data-es="Tu espacio de <em>transcripción.</em>" data-en="Your transcription <em>studio.</em>">Tu espacio de <em>transcripción.</em></h2>
+      <p class="section-sub" data-es="La primera vez se descarga el modelo elegido (entre 40 y 250 MB). Después queda en la caché del navegador. Usa grabaciones de prueba hasta validar el resultado." data-en="The chosen model is downloaded on first use (40–250 MB) and then stays in the browser cache. Use test recordings until results are validated.">La primera vez se descarga el modelo elegido (entre 40 y 250 MB). Después queda en la caché del navegador. Usa grabaciones de prueba hasta validar el resultado.</p>
+    </header>
+
+    <div class="invite-card" role="region" aria-label="Acceso por invitación">
+      <span class="invite-lock" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>
+      <p class="eyebrow" data-es="Beta privada · gratuita" data-en="Private beta · free">Beta privada · gratuita</p>
+      <h3 data-es="Acceso por <em>invitación.</em>" data-en="Invitation <em>only.</em>">Acceso por <em>invitación.</em></h3>
+      <p data-es="Estamos puliendo Wairua Scribe con un grupo reducido de veterinarios. Si tienes código, introdúcelo; si quieres probarlo, escríbeme y te lo envío." data-en="We are polishing Wairua Scribe with a small group of veterinarians. If you have a code, enter it; if you would like to try it, write to me and I will send you one.">Estamos puliendo Wairua Scribe con un grupo reducido de veterinarios. Si tienes código, introdúcelo; si quieres probarlo, escríbeme y te lo envío.</p>
+      <form class="invite-form" autocomplete="off">
+        <input type="text" placeholder="WS-XXXX-XXXX" aria-label="Código de invitación" spellcheck="false" autocapitalize="characters">
+        <button class="btn btn-primary" type="submit"><span data-es="Entrar" data-en="Enter">Entrar</span> <i aria-hidden="true">→</i></button>
+        <p class="invite-msg" role="status"></p>
+      </form>
+      <a class="invite-mail" href="#about" data-es="¿No tienes código? Pide tu invitación →" data-en="No code? Request your invitation →">¿No tienes código? Pide tu invitación →</a>
+    </div>
+    <div class="studio">
+      <!-- Fuente -->
+      <div class="studio-col">
+        <div class="source-tabs" role="tablist">
+          <button class="tab is-active" role="tab" aria-selected="true" data-tab="file" type="button" data-es="Archivo" data-en="File">Archivo</button>
+          <button class="tab" role="tab" aria-selected="false" data-tab="mic" type="button" data-es="Grabar" data-en="Record">Grabar</button>
+        </div>
+
+        <div class="tab-panel" data-panel="file">
+          <label class="drop" id="drop">
+            <input type="file" id="file" accept="audio/*,video/*,.m4a,.mp3,.wav,.ogg,.opus,.webm,.mp4,.aac,.flac">
+            <span class="drop-icon" aria-hidden="true">
+              <svg viewBox="0 0 48 48" width="40" height="40"><path d="M6 24h4l3-9 5 22 5-30 5 26 4-14 3 5h7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            <strong id="drop-title" data-es="Arrastra aquí tu audio o vídeo" data-en="Drop your audio or video here">Arrastra aquí tu audio o vídeo</strong>
+            <small id="drop-sub" data-es="o haz clic para elegirlo · MP3, M4A, WAV, OGG, WEBM, MP4…" data-en="or click to browse · MP3, M4A, WAV, OGG, WEBM, MP4…">o haz clic para elegirlo · MP3, M4A, WAV, OGG, WEBM, MP4…</small>
+          </label>
+        </div>
+
+        <div class="tab-panel" data-panel="mic" hidden>
+          <div class="recorder">
+            <canvas id="meter" width="600" height="120" aria-hidden="true"></canvas>
+            <div class="rec-row">
+              <button id="rec" class="rec-btn" type="button" aria-pressed="false"><span class="rec-core"></span><span class="sr" data-es="Grabar" data-en="Record">Grabar</span></button>
+              <div>
+                <div id="rec-time" class="rec-time">00:00</div>
+                <small id="rec-label" data-es="Pulsa para empezar a grabar" data-en="Press to start recording">Pulsa para empezar a grabar</small>
+              </div>
+            </div>
+            <label class="toggle live-toggle"><input type="checkbox" id="rec-live" checked><span></span><em data-es="Ver el texto mientras grabo" data-en="Show text while recording">Ver el texto mientras grabo</em></label>
+            <p class="fine" data-es="Informa siempre a los presentes antes de grabar una consulta." data-en="Always inform everyone present before recording a consultation.">Informa siempre a los presentes antes de grabar una consulta.</p>
+          </div>
+        </div>
+
+        <button type="button" class="device-badge" id="device-badge" data-state="checking">
+          <span class="db-dot"></span><span id="device-badge-text" data-es="Comprobando tu equipo…" data-en="Checking your device…">Comprobando tu equipo…</span><span class="db-link" data-es="Requisitos ↗" data-en="Requirements ↗">Requisitos ↗</span>
+        </button>
+        <div class="settings">
+          <fieldset class="seg">
+            <legend data-es="Modelo" data-en="Model">Modelo</legend>
+            <label><input type="radio" name="model" value="onnx-community/whisper-tiny"><span><b>Tiny</b><small data-es="Rápido · ~40 MB" data-en="Fast · ~40 MB">Rápido · ~40 MB</small></span></label>
+            <label><input type="radio" name="model" value="onnx-community/whisper-base" checked><span><b>Base</b><small data-es="Equilibrado · ~80 MB" data-en="Balanced · ~80 MB">Equilibrado · ~80 MB</small></span></label>
+            <label><input type="radio" name="model" value="onnx-community/whisper-small"><span><b>Small</b><small data-es="Preciso · ~250 MB" data-en="Accurate · ~250 MB">Preciso · ~250 MB</small></span></label>
+          </fieldset>
+          <div class="field-row">
+            <label class="field"><span data-es="Idioma del audio" data-en="Audio language">Idioma del audio</span>
+              <select id="language">
+                <option value="spanish" selected>Español</option>
+                <option value="galician">Galego</option>
+                <option value="catalan">Català</option>
+                <option value="portuguese">Português</option>
+                <option value="english">English</option>
+                <option value="auto" data-es="Detectar automáticamente" data-en="Auto-detect">Detectar automáticamente</option>
+              </select>
+            </label>
+            <label class="field"><span data-es="Procesador" data-en="Processor">Procesador</span>
+              <select id="processor">
+                <option value="auto" data-es="Automático (GPU si es posible)" data-en="Automatic (GPU if possible)">Automático (GPU si es posible)</option>
+                <option value="webgpu" data-es="Solo GPU (WebGPU)" data-en="GPU only (WebGPU)">Solo GPU (WebGPU)</option>
+                <option value="wasm" data-es="Solo CPU (más compatible)" data-en="CPU only (most compatible)">Solo CPU (más compatible)</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <div class="run">
+          <button class="btn btn-primary btn-wide" id="start" type="button"><span data-es="Transcribir" data-en="Transcribe">Transcribir</span> <i aria-hidden="true">→</i></button>
+          <button class="btn btn-ghost" id="cancel" type="button" hidden data-es="Cancelar" data-en="Cancel">Cancelar</button>
+        </div>
+
+        <div class="progress-wrap" id="progress-wrap" hidden>
+          <div class="progress-top"><span id="stage">—</span><span id="pct"></span></div>
+          <div class="bar"><i id="bar"></i></div>
+          <div class="progress-bottom"><span id="device-tag"></span><span id="elapsed">00:00</span></div>
+        </div>
+        <p id="status" class="status" role="status" aria-live="polite"></p>
+      </div>
+
+      <!-- Resultado -->
+      <div class="studio-col result-col">
+        <div class="result-head">
+          <label for="result" class="result-title" data-es="Transcripción" data-en="Transcript">Transcripción</label>
+          <label class="toggle"><input type="checkbox" id="timestamps"><span></span><em data-es="Marcas de tiempo" data-en="Timestamps">Marcas de tiempo</em></label>
+        </div>
+        <textarea id="result" spellcheck="true" data-es-ph="El texto aparecerá aquí a medida que se transcribe…" data-en-ph="Text will appear here as it is transcribed…" placeholder="El texto aparecerá aquí a medida que se transcribe…"></textarea>
+        <div class="result-foot">
+          <span id="wordcount" class="fine"></span>
+          <div class="actions">
+            <button id="copy" class="chip" type="button" data-es="Copiar" data-en="Copy">Copiar</button>
+            <button id="dl-txt" class="chip" type="button">TXT</button>
+            <button id="dl-srt" class="chip" type="button">SRT</button>
+          </div>
+        </div>
+        <p class="clinical-note" data-es="⚕ Revisa siempre nombres de fármacos, dosis, cifras y negaciones antes de incorporar el texto a la historia clínica." data-en="⚕ Always check drug names, doses, figures and negations before adding the text to a medical record.">⚕ Revisa siempre nombres de fármacos, dosis, cifras y negaciones antes de incorporar el texto a la historia clínica.</p>
+      </div>
+    </div>
+
+    <details class="diag">
+      <summary data-es="Diagnóstico del dispositivo y solución de problemas" data-en="Device diagnostics and troubleshooting">Diagnóstico del dispositivo y solución de problemas</summary>
+      <div class="diag-body">
+        <ul id="diag-list" class="diag-list"></ul>
+        <div class="diag-actions">
+          <button id="diag-run" class="chip" type="button" data-es="Volver a comprobar" data-en="Check again">Volver a comprobar</button>
+          <button id="clear-cache" class="chip" type="button" data-es="Borrar modelos descargados" data-en="Delete downloaded models">Borrar modelos descargados</button>
+        </div>
+        <div class="diag-help">
+          <p data-es="<b>Si no transcribe:</b> abre la app por <code>http://localhost</code> o HTTPS (nunca con doble clic), elige «Solo CPU» y el modelo Tiny con un audio corto. Si así funciona, el problema estaba en la GPU o en la memoria." data-en="<b>If nothing happens:</b> open the app via <code>http://localhost</code> or HTTPS (never by double-clicking), choose “CPU only” and the Tiny model with a short clip. If that works, the issue was the GPU or memory."><b>Si no transcribe:</b> abre la app por <code>http://localhost</code> o HTTPS (nunca con doble clic), elige «Solo CPU» y el modelo Tiny con un audio corto. Si así funciona, el problema estaba en la GPU o en la memoria.</p>
+          <p data-es="<b>Errores detallados:</b> la consola del navegador (F12) muestra el error técnico completo." data-en="<b>Detailed errors:</b> the browser console (F12) shows the full technical error."><b>Errores detallados:</b> la consola del navegador (F12) muestra el error técnico completo.</p>
+        </div>
+      </div>
+    </details>
+  </section>
+
+
+  <!-- ============ EN DIRECTO ============ -->
+  <section class="live-section" id="live">
+    <header class="section-head">
+      <p class="eyebrow">04 — <span data-es="En directo · beta" data-en="Live · beta">En directo · beta</span></p>
+      <h2 data-es="Subtítulos <em>en tiempo real.</em>" data-en="Subtitles <em>in real time.</em>">Subtítulos <em>en tiempo real.</em></h2>
+      <p class="section-sub" data-es="Subtitula un webinar, un vídeo o lo que se dice en la sala mientras suena. Funciona en tu navegador con la GPU; nada sale del equipo." data-en="Caption a webinar, a video or what is said in the room as it happens. It runs in your browser on the GPU; nothing leaves your device.">Subtitula un webinar, un vídeo o lo que se dice en la sala mientras suena. Funciona en tu navegador con la GPU; nada sale del equipo.</p>
+    </header>
+
+    <div class="invite-card" role="region" aria-label="Acceso por invitación">
+      <span class="invite-lock" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>
+      <p class="eyebrow" data-es="Beta privada · gratuita" data-en="Private beta · free">Beta privada · gratuita</p>
+      <h3 data-es="Acceso por <em>invitación.</em>" data-en="Invitation <em>only.</em>">Acceso por <em>invitación.</em></h3>
+      <p data-es="Estamos puliendo Wairua Scribe con un grupo reducido de veterinarios. Si tienes código, introdúcelo; si quieres probarlo, escríbeme y te lo envío." data-en="We are polishing Wairua Scribe with a small group of veterinarians. If you have a code, enter it; if you would like to try it, write to me and I will send you one.">Estamos puliendo Wairua Scribe con un grupo reducido de veterinarios. Si tienes código, introdúcelo; si quieres probarlo, escríbeme y te lo envío.</p>
+      <form class="invite-form" autocomplete="off">
+        <input type="text" placeholder="WS-XXXX-XXXX" aria-label="Código de invitación" spellcheck="false" autocapitalize="characters">
+        <button class="btn btn-primary" type="submit"><span data-es="Entrar" data-en="Enter">Entrar</span> <i aria-hidden="true">→</i></button>
+        <p class="invite-msg" role="status"></p>
+      </form>
+      <a class="invite-mail" href="#about" data-es="¿No tienes código? Pide tu invitación →" data-en="No code? Request your invitation →">¿No tienes código? Pide tu invitación →</a>
+    </div>
+    <div class="live-grid">
+      <aside class="studio-col controls">
+        <p class="step-label"><span>1</span> <em data-es="Elige qué quieres subtitular" data-en="Choose what to caption">Elige qué quieres subtitular</em></p>
+        <div class="src-cards" role="radiogroup" aria-label="Fuente de audio">
+          <button class="src-card is-active" type="button" data-src="tab" role="radio" aria-checked="true">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="13" rx="2"/><path d="M3 9h18M8 21h8"/></svg>
+            <b data-es="Otra pestaña" data-en="Another tab">Otra pestaña</b><small data-es="Webinar, YouTube, Meet…" data-en="Webinar, YouTube, Meet…">Webinar, YouTube, Meet…</small>
+          </button>
+          <button class="src-card" type="button" data-src="mic" role="radio" aria-checked="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+            <b data-es="Micrófono" data-en="Microphone">Micrófono</b><small data-es="Consulta, clase, reunión" data-en="Consult, class, meeting">Consulta, clase, reunión</small>
+          </button>
+          <button class="src-card" type="button" data-src="video" role="radio" aria-checked="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="m17 10 4-2v8l-4-2"/></svg>
+            <b data-es="Vídeo o audio" data-en="Video or audio">Vídeo o audio</b><small data-es="Un archivo de tu equipo" data-en="A file on your device">Un archivo de tu equipo</small>
+          </button>
+        </div>
+
+        <div class="src-help" data-help="tab">
+          <p data-es="Al pulsar <b>Empezar</b>, Chrome abrirá una ventana para elegir qué compartir:" data-en="When you press <b>Start</b>, Chrome opens a window to choose what to share:">Al pulsar <b>Empezar</b>, Chrome abrirá una ventana para elegir qué compartir:</p>
+          <ol class="mini-steps">
+            <li data-es="Arriba, elige <b>«Pestaña de Chrome»</b>." data-en="At the top, choose <b>“Chrome tab”</b>.">Arriba, elige <b>«Pestaña de Chrome»</b>.</li>
+            <li data-es="Selecciona la pestaña del webinar o del vídeo." data-en="Select the webinar or video tab.">Selecciona la pestaña del webinar o del vídeo.</li>
+            <li data-es="Deja activado <b>«Compartir también el audio de la pestaña»</b> y pulsa <b>Compartir</b>." data-en="Keep <b>“Also share tab audio”</b> on and press <b>Share</b>.">Deja activado <b>«Compartir también el audio de la pestaña»</b> y pulsa <b>Compartir</b>.</li>
+          </ol>
+          <p class="fine" data-es="Para Zoom o Teams de escritorio (Windows): elige «Toda la pantalla» y activa «Compartir audio del sistema»." data-en="For desktop Zoom or Teams (Windows): choose “Entire screen” and turn on “Share system audio”.">Para Zoom o Teams de escritorio (Windows): elige «Toda la pantalla» y activa «Compartir audio del sistema».</p>
+        </div>
+        <div class="src-help" data-help="mic" hidden>
+          <p data-es="Subtitula lo que se dice en la sala. El navegador te pedirá permiso para usar el micrófono." data-en="Captions what is said in the room. The browser will ask for microphone permission.">Subtitula lo que se dice en la sala. El navegador te pedirá permiso para usar el micrófono.</p>
+          <p class="fine" data-es="Informa siempre a los presentes antes de empezar." data-en="Always inform everyone present before starting.">Informa siempre a los presentes antes de empezar.</p>
+        </div>
+        <div class="src-help" data-help="video" hidden>
+          <label class="drop drop-sm" id="lv-vdrop">
+            <input type="file" id="lv-vfile" accept="video/*,audio/*">
+            <strong id="lv-vdrop-title" data-es="Elige un vídeo o audio" data-en="Choose a video or audio">Elige un vídeo o audio</strong>
+            <small id="lv-vdrop-sub" data-es="Se reproduce aquí y se subtitula mientras suena" data-en="It plays here and is captioned as it plays">Se reproduce aquí y se subtitula mientras suena</small>
+          </label>
+        </div>
+
+        <p class="step-label"><span>2</span> <em data-es="Ajustes" data-en="Settings">Ajustes</em></p>
+        <div class="settings" style="margin-top:0">
+          <fieldset class="seg">
+            <legend data-es="Modelo" data-en="Model">Modelo</legend>
+            <label><input type="radio" name="lmodel" value="onnx-community/whisper-tiny"><span><b>Tiny</b><small data-es="Mínima latencia" data-en="Lowest latency">Mínima latencia</small></span></label>
+            <label><input type="radio" name="lmodel" value="onnx-community/whisper-base" checked><span><b>Base</b><small data-es="Recomendado" data-en="Recommended">Recomendado</small></span></label>
+            <label><input type="radio" name="lmodel" value="onnx-community/whisper-small"><span><b>Small</b><small data-es="GPU potente" data-en="Strong GPU">GPU potente</small></span></label>
+          </fieldset>
+          <div class="field-row">
+            <label class="field"><span data-es="Idioma" data-en="Language">Idioma</span>
+              <select id="lv-lang">
+                <option value="spanish" selected>Español</option>
+                <option value="galician">Galego</option>
+                <option value="catalan">Català</option>
+                <option value="portuguese">Português</option>
+                <option value="english">English</option>
+                <option value="french">Français</option>
+                <option value="italian">Italiano</option>
+              </select>
+            </label>
+            <label class="field"><span data-es="Procesador" data-en="Processor">Procesador</span>
+              <select id="lv-proc">
+                <option value="auto" data-es="Automático (GPU)" data-en="Automatic (GPU)">Automático (GPU)</option>
+                <option value="wasm" data-es="Solo CPU (lento)" data-en="CPU only (slow)">Solo CPU (lento)</option>
+              </select>
+            </label>
+          </div>
+        </div>
+        <div class="device-badge" id="lv-device" data-state="checking"><span class="db-dot"></span><span id="lv-device-text">…</span></div>
+
+        <p class="step-label"><span>3</span> <em data-es="Empieza" data-en="Start">Empieza</em></p>
+        <div class="run" style="margin-top:0">
+          <button class="btn btn-primary btn-wide" id="lv-start" type="button"><span data-es="Empezar" data-en="Start">Empezar</span> <i aria-hidden="true">●</i></button>
+          <button class="btn btn-ghost" id="lv-stop" type="button" hidden data-es="Detener" data-en="Stop">Detener</button>
+        </div>
+        <div class="progress-wrap" id="lv-prog" hidden>
+          <div class="progress-top"><span id="lv-stage-label">—</span><span id="lv-pct"></span></div>
+          <div class="bar"><i id="lv-bar"></i></div>
+        </div>
+        <p id="lv-status" class="status" role="status" aria-live="polite"></p>
+        <dl class="metrics">
+          <div><dt data-es="Estado" data-en="State">Estado</dt><dd id="m-state">—</dd></div>
+          <div><dt data-es="Retraso" data-en="Delay">Retraso</dt><dd id="m-lag">—</dd></div>
+          <div><dt data-es="Proceso" data-en="Processing">Proceso</dt><dd id="m-proc">—</dd></div>
+          <div><dt data-es="Motor" data-en="Engine">Motor</dt><dd id="m-dev">—</dd></div>
+        </dl>
+      </aside>
+
+      <div class="stage-wrap">
+        <div class="stage" id="lv-stage">
+          <video id="lv-video" playsinline controls hidden></video>
+          <canvas id="lv-scope" aria-hidden="true"></canvas>
+          <div class="stage-idle">
+            <img src="mark.png" alt="" width="120" height="48">
+            <p data-es="Elige una fuente y pulsa <b>Empezar</b>" data-en="Choose a source and press <b>Start</b>">Elige una fuente y pulsa <b>Empezar</b></p>
+          </div>
+          <div class="captions is-empty" id="lv-captions" aria-live="off">
+            <p><span class="cap-final" id="lv-cap-final"></span> <span class="cap-live" id="lv-cap-live"></span></p>
+          </div>
+          <div class="stage-tools">
+            <label class="size-ctl" title="Tamaño">A<input type="range" id="lv-fsize" min="18" max="64" value="32" aria-label="Tamaño de los subtítulos"><b>A</b></label>
+            <button type="button" class="chip" id="lv-full" data-es="⛶ Pantalla completa" data-en="⛶ Full screen">⛶ Pantalla completa</button>
+          </div>
+        </div>
+
+        <div class="studio-col transcript">
+          <div class="result-head">
+            <span class="result-title" data-es="Registro" data-en="Log">Registro</span>
+            <label class="toggle"><input type="checkbox" id="lv-ts" checked><span></span><em data-es="Marcas de tiempo" data-en="Timestamps">Marcas de tiempo</em></label>
+          </div>
+          <div class="log" id="lv-log"><p class="log-empty" data-es="Las frases confirmadas aparecerán aquí." data-en="Confirmed sentences will appear here.">Las frases confirmadas aparecerán aquí.</p></div>
+          <div class="result-foot">
+            <span id="lv-count" class="fine"></span>
+            <div class="actions">
+              <button id="lv-clear" class="chip" type="button" data-es="Limpiar" data-en="Clear">Limpiar</button>
+              <button id="lv-copy" class="chip" type="button" data-es="Copiar" data-en="Copy">Copiar</button>
+              <button id="lv-txt" class="chip" type="button">TXT</button>
+              <button id="lv-srt" class="chip" type="button">SRT</button>
+            </div>
+          </div>
+          <p class="clinical-note" data-es="⚕ Subtítulos automáticos con unos segundos de retraso. Pueden contener errores: revisa fármacos, dosis y negaciones antes de usar el texto." data-en="⚕ Automatic captions with a few seconds of delay. They may contain errors: check drugs, doses and negations before using the text.">⚕ Subtítulos automáticos con unos segundos de retraso. Pueden contener errores: revisa fármacos, dosis y negaciones antes de usar el texto.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ EVIDENCIA ============ -->
+  <section class="science" id="science">
+    <header class="section-head">
+      <p class="eyebrow">05 — <span data-es="Lo que dice la ciencia" data-en="What the science says">Lo que dice la ciencia</span></p>
+      <h2 data-es="Ahorra tiempo. <em>No sustituye tu criterio.</em>" data-en="It saves time. <em>It does not replace judgement.</em>">Ahorra tiempo. <em>No sustituye tu criterio.</em></h2>
+      <p class="section-sub" data-es="Resumen de los estudios más sólidos publicados hasta 2026 sobre escribas de IA. Casi todos proceden de medicina humana: en veterinaria aún no hay ensayos independientes publicados." data-en="A summary of the strongest studies published up to 2026 on AI scribes. Almost all come from human medicine: there are no published independent trials in veterinary practice yet.">Resumen de los estudios más sólidos publicados hasta 2026 sobre escribas de IA. Casi todos proceden de medicina humana: en veterinaria aún no hay ensayos independientes publicados.</p>
+    </header>
+
+    <div class="stats">
+      <article class="stat">
+        <div class="stat-n">−16<small>min</small></div>
+        <p data-es="de documentación por cada 8 h de consulta (−10 %) en 8.581 clínicos de cinco centros académicos de EE. UU. El trabajo fuera de horario no se redujo." data-en="of documentation per 8 hours of clinic (−10%) across 8,581 clinicians at five US academic centres. After-hours work did not decrease.">de documentación por cada 8 h de consulta (−10 %) en 8.581 clínicos de cinco centros académicos de EE. UU. El trabajo fuera de horario no se redujo.</p>
+        <cite>Rotenstein et al. · <i>JAMA</i> 2026</cite>
+      </article>
+      <article class="stat">
+        <div class="stat-n">−9,5<small>%</small></div>
+        <p data-es="de tiempo por nota con una de las dos herramientas probadas en el primer ensayo aleatorizado (238 médicos); la otra no mostró diferencias. Mejoras modestas en agotamiento." data-en="time per note with one of the two tools tested in the first randomised trial (238 physicians); the other showed no difference. Modest burnout improvements.">de tiempo por nota con una de las dos herramientas probadas en el primer ensayo aleatorizado (238 médicos); la otra no mostró diferencias. Mejoras modestas en agotamiento.</p>
+        <cite>Lukac et al. · <i>NEJM AI</i> 2025</cite>
+      </article>
+      <article class="stat">
+        <div class="stat-n">−22<small>min</small></div>
+        <p data-es="de documentación al día (0,36 h) y menos agotamiento laboral en un ensayo escalonado con 66 profesionales, manteniendo la calidad de las notas." data-en="of documentation per day (0.36 h) and less work exhaustion in a stepped-wedge trial with 66 clinicians, with note quality maintained.">de documentación al día (0,36 h) y menos agotamiento laboral en un ensayo escalonado con 66 profesionales, manteniendo la calidad de las notas.</p>
+        <cite>Afshar et al. · <i>NEJM AI</i> 2025</cite>
+      </article>
+      <article class="stat warn">
+        <div class="stat-n">~1<small>%</small></div>
+        <p data-es="de las transcripciones de Whisper contenían frases inventadas que no estaban en el audio; el 38 % de ellas eran potencialmente dañinas. Las pausas largas y los silencios las favorecen." data-en="of Whisper transcriptions contained invented phrases absent from the audio; 38% of these were potentially harmful. Long pauses and silences make them more likely.">de las transcripciones de Whisper contenían frases inventadas que no estaban en el audio; el 38 % de ellas eran potencialmente dañinas. Las pausas largas y los silencios las favorecen.</p>
+        <cite>Koenecke et al. · <i>ACM FAccT</i> 2024</cite>
+      </article>
+    </div>
+
+    <div class="science-notes">
+      <div>
+        <h3 data-es="¿Cuánto tiempo puede ahorrar un veterinario?" data-en="How much time can a veterinarian save?">¿Cuánto tiempo puede ahorrar un veterinario?</h3>
+        <p data-es="Los estudios independientes en medicina humana sitúan el ahorro entre <b>15 y 25 minutos por jornada</b>, y es mayor en quien usa la herramienta en más de la mitad de sus consultas. Las cifras de 1–2 horas diarias que se citan en veterinaria proceden de fabricantes, sin revisión por pares." data-en="Independent human-medicine studies put the saving at <b>15–25 minutes per working day</b>, larger for those who use the tool in more than half of their visits. The 1–2 hours/day figures quoted in veterinary practice come from vendors and are not peer-reviewed.">Los estudios independientes en medicina humana sitúan el ahorro entre <b>15 y 25 minutos por jornada</b>, y es mayor en quien usa la herramienta en más de la mitad de sus consultas. Las cifras de 1–2 horas diarias que se citan en veterinaria proceden de fabricantes, sin revisión por pares.</p>
+      </div>
+      <div>
+        <h3 data-es="Qué es (y qué no es) Wairua Scribe" data-en="What Wairua Scribe is (and is not)">Qué es (y qué no es) Wairua Scribe</h3>
+        <p data-es="Es un <b>transcriptor</b>: convierte voz en texto. Los estudios anteriores evalúan escribas que además redactan la nota clínica. El ahorro real dependerá de tu flujo de trabajo; medirlo en tu clínica es la mejor evidencia." data-en="It is a <b>transcriber</b>: it turns speech into text. The studies above evaluate scribes that also draft the clinical note. Real savings depend on your workflow; measuring it in your own practice is the best evidence.">Es un <b>transcriptor</b>: convierte voz en texto. Los estudios anteriores evalúan escribas que además redactan la nota clínica. El ahorro real dependerá de tu flujo de trabajo; medirlo en tu clínica es la mejor evidencia.</p>
+      </div>
+    </div>
+
+    <details class="refs">
+      <summary data-es="Referencias" data-en="References">Referencias</summary>
+      <ol>
+        <li>Rotenstein L, et al. Changes in clinician time expenditure and visit quantity with adoption of AI-powered scribes: a multisite study. <i>JAMA</i>. 2026. <a href="https://doi.org/10.1001/jama.2026.2253" target="_blank" rel="noopener">doi:10.1001/jama.2026.2253</a></li>
+        <li>Lukac PJ, et al. Ambient AI scribes in clinical practice: a randomized trial. <i>NEJM AI</i>. 2025;2(12). <a href="https://doi.org/10.1056/AIoa2501000" target="_blank" rel="noopener">doi:10.1056/AIoa2501000</a></li>
+        <li>Afshar M, et al. A pragmatic randomized controlled trial of ambient artificial intelligence to improve health practitioner well-being. <i>NEJM AI</i>. 2025;2(12). <a href="https://doi.org/10.1056/AIoa2500945" target="_blank" rel="noopener">doi:10.1056/AIoa2500945</a></li>
+        <li>Koenecke A, et al. Careless Whisper: speech-to-text hallucination harms. <i>ACM FAccT</i> 2024. <a href="https://doi.org/10.1145/3630106.3658996" target="_blank" rel="noopener">doi:10.1145/3630106.3658996</a></li>
+      </ol>
+    </details>
+  </section>
+
+  <!-- ============ USO RESPONSABLE ============ -->
+  <section class="responsible" id="responsible">
+    <header class="section-head">
+      <p class="eyebrow">06 — <span data-es="Uso responsable" data-en="Responsible use">Uso responsable</span></p>
+      <h2 data-es="La IA transcribe. <em>Tú firmas.</em>" data-en="AI transcribes. <em>You sign.</em>">La IA transcribe. <em>Tú firmas.</em></h2>
+    </header>
+    <ol class="rules">
+      <li><b data-es="Informa antes de grabar" data-en="Inform before recording">Informa antes de grabar</b><span data-es="Avisa al propietario y al equipo y pide su conformidad. Si alguien no quiere, no grabes." data-en="Tell the owner and the team and ask for their agreement. If someone objects, don't record.">Avisa al propietario y al equipo y pide su conformidad. Si alguien no quiere, no grabes.</span></li>
+      <li><b data-es="Revisa siempre el texto" data-en="Always review the text">Revisa siempre el texto</b><span data-es="Fármacos, dosis, unidades, vías, lateralidad (izquierdo/derecho), cifras y, sobre todo, negaciones: «no vomita» y «vomita» se parecen mucho al oído." data-en="Drugs, doses, units, routes, laterality (left/right), figures and above all negations: “not vomiting” and “vomiting” sound alike.">Fármacos, dosis, unidades, vías, lateralidad (izquierdo/derecho), cifras y, sobre todo, negaciones: «no vomita» y «vomita» se parecen mucho al oído.</span></li>
+      <li><b data-es="Valida antes de registrar" data-en="Validate before filing">Valida antes de registrar</b><span data-es="Nada pasa a la historia clínica sin que el veterinario responsable lo lea y lo corrija. La responsabilidad del registro es tuya, no de la herramienta." data-en="Nothing goes into the medical record until the responsible veterinarian has read and corrected it. Responsibility for the record is yours, not the tool’s.">Nada pasa a la historia clínica sin que el veterinario responsable lo lea y lo corrija. La responsabilidad del registro es tuya, no de la herramienta.</span></li>
+      <li><b data-es="Desconfía de lo que no recuerdas" data-en="Distrust what you don’t remember">Desconfía de lo que no recuerdas</b><span data-es="Si aparece una frase que nadie dijo, bórrala. Whisper puede inventar texto, sobre todo tras silencios largos o con ruido." data-en="If a sentence appears that nobody said, delete it. Whisper can invent text, especially after long silences or noise.">Si aparece una frase que nadie dijo, bórrala. Whisper puede inventar texto, sobre todo tras silencios largos o con ruido.</span></li>
+      <li><b data-es="No es una herramienta diagnóstica" data-en="It is not a diagnostic tool">No es una herramienta diagnóstica</b><span data-es="Transcribe lo que se dice; no interpreta, no sugiere tratamientos y no está validada clínicamente." data-en="It transcribes what is said; it does not interpret, suggest treatments or hold clinical validation.">Transcribe lo que se dice; no interpreta, no sugiere tratamientos y no está validada clínicamente.</span></li>
+      <li><b data-es="Minimiza los datos" data-en="Minimise data">Minimiza los datos</b><span data-es="Guarda solo el texto necesario y borra la grabación cuando ya no la necesites. Evita leer en voz alta datos personales que no aporten nada clínico." data-en="Keep only the text you need and delete the recording when no longer needed. Avoid reading out personal data that adds nothing clinically.">Guarda solo el texto necesario y borra la grabación cuando ya no la necesites. Evita leer en voz alta datos personales que no aporten nada clínico.</span></li>
+    </ol>
+  </section>
+
+  <!-- ============ PRIVACIDAD ============ -->
+  <section class="privacy" id="privacy">
+    <header class="section-head">
+      <p class="eyebrow">07 — <span data-es="Privacidad y seguridad" data-en="Privacy & security">Privacidad y seguridad</span></p>
+      <h2 data-es="Lo que se dice en consulta, <em>se queda en consulta.</em>" data-en="What is said in the exam room <em>stays there.</em>">Lo que se dice en consulta, <em>se queda en consulta.</em></h2>
+    </header>
+    <div class="compare">
+      <article class="compare-col cloud">
+        <p class="eyebrow" data-es="Escriba en la nube (habitual)" data-en="Cloud scribe (typical)">Escriba en la nube (habitual)</p>
+        <ul>
+          <li data-es="El audio viaja por Internet hasta servidores de terceros." data-en="Audio travels over the internet to third-party servers.">El audio viaja por Internet hasta servidores de terceros.</li>
+          <li data-es="Se almacena fuera de tu control, a veces fuera de la UE." data-en="It is stored outside your control, sometimes outside the EU.">Se almacena fuera de tu control, a veces fuera de la UE.</li>
+          <li data-es="Requiere cuenta, contrato de encargo de tratamiento y confianza en el proveedor." data-en="Requires an account, a data-processing agreement and trust in the vendor.">Requiere cuenta, contrato de encargo de tratamiento y confianza en el proveedor.</li>
+        </ul>
+      </article>
+      <article class="compare-col local">
+        <p class="eyebrow" data-es="Wairua Scribe (local)" data-en="Wairua Scribe (local)">Wairua Scribe (local)</p>
+        <ul>
+          <li data-es="El audio se decodifica y transcribe <b>en tu navegador</b>; no se envía a ningún servidor." data-en="Audio is decoded and transcribed <b>in your browser</b>; it is never sent to a server.">El audio se decodifica y transcribe <b>en tu navegador</b>; no se envía a ningún servidor.</li>
+          <li data-es="Sin cuentas, sin registros de uso y sin cookies de seguimiento." data-en="No accounts, no usage logs and no tracking cookies.">Sin cuentas, sin registros de uso y sin cookies de seguimiento.</li>
+          <li data-es="Una vez descargado, el modelo se reutiliza desde tu equipo." data-en="Once downloaded, the model is reused from your device.">Una vez descargado, el modelo se reutiliza desde tu equipo.</li>
+        </ul>
+      </article>
+    </div>
+    <p class="honest" data-es="<b>Con transparencia:</b> en el primer uso el modelo se descarga de Hugging Face, que ve tu dirección IP como en cualquier descarga, pero nunca tu audio. La seguridad final depende también de tu equipo: mantén el sistema actualizado y revisa las extensiones del navegador que tienes instaladas." data-en="<b>To be transparent:</b> on first use the model is downloaded from Hugging Face, which sees your IP address as with any download, but never your audio. Final security also depends on your device: keep your system updated and review your browser extensions."><b>Con transparencia:</b> en el primer uso el modelo se descarga de Hugging Face, que ve tu dirección IP como en cualquier descarga, pero nunca tu audio. La seguridad final depende también de tu equipo: mantén el sistema actualizado y revisa las extensiones del navegador que tienes instaladas.</p>
+  </section>
+
+  <!-- ============ TECNOLOGÍA ============ -->
+  <section class="tech" id="tech">
+    <header class="section-head">
+      <p class="eyebrow">08 — <span data-es="Tecnología" data-en="Technology">Tecnología</span></p>
+      <h2 data-es="¿Qué es <em>WebGPU?</em>" data-en="What is <em>WebGPU?</em>">¿Qué es <em>WebGPU?</em></h2>
+    </header>
+    <div class="tech-grid">
+      <p class="tech-lead" data-es="WebGPU es un estándar web del W3C que permite a una página usar la tarjeta gráfica del ordenador para calcular, no solo para dibujar. Lo ha diseñado el grupo de trabajo «GPU for the Web», con ingenieros de Apple, Google, Microsoft y Mozilla, y ya viene activado en Chrome, Edge, Safari y Firefox. Gracias a él, un modelo de reconocimiento de voz que antes necesitaba un servidor puede ejecutarse dentro de tu navegador." data-en="WebGPU is a W3C web standard that lets a page use the computer’s graphics card for computation, not just drawing. It was designed by the “GPU for the Web” working group with engineers from Apple, Google, Microsoft and Mozilla, and now ships enabled in Chrome, Edge, Safari and Firefox. Thanks to it, a speech-recognition model that used to need a server can run inside your browser.">WebGPU es un estándar web del W3C que permite a una página usar la tarjeta gráfica del ordenador para calcular, no solo para dibujar. Lo ha diseñado el grupo de trabajo «GPU for the Web», con ingenieros de Apple, Google, Microsoft y Mozilla, y ya viene activado en Chrome, Edge, Safari y Firefox. Gracias a él, un modelo de reconocimiento de voz que antes necesitaba un servidor puede ejecutarse dentro de tu navegador.</p>
+      <dl class="stack">
+        <div><dt>Whisper</dt><dd data-es="Modelo abierto de reconocimiento de voz (OpenAI, 2022), multilingüe." data-en="Open multilingual speech-recognition model (OpenAI, 2022).">Modelo abierto de reconocimiento de voz (OpenAI, 2022), multilingüe.</dd></div>
+        <div><dt>Transformers.js</dt><dd data-es="Biblioteca de Hugging Face para ejecutar modelos de IA en el navegador." data-en="Hugging Face library to run AI models in the browser.">Biblioteca de Hugging Face para ejecutar modelos de IA en el navegador.</dd></div>
+        <div><dt>ONNX Runtime Web</dt><dd data-es="Motor de inferencia de Microsoft que usa WebGPU o, si no está disponible, la CPU (WebAssembly)." data-en="Microsoft inference engine running on WebGPU or, if unavailable, the CPU (WebAssembly).">Motor de inferencia de Microsoft que usa WebGPU o, si no está disponible, la CPU (WebAssembly).</dd></div>
+        <div><dt>Web Worker</dt><dd data-es="Ejecuta la transcripción en segundo plano para que la página no se bloquee." data-en="Runs transcription in the background so the page never freezes.">Ejecuta la transcripción en segundo plano para que la página no se bloquee.</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <!-- ============ AUTOR ============ -->
+  <section class="author" id="about">
+    <div class="author-card">
+      <img src="mark.png" alt="" class="author-mark" width="120" height="48">
+      <div>
+        <p class="eyebrow">09 — <span data-es="Quién está detrás" data-en="Who is behind it">Quién está detrás</span></p>
+        <h2>Germán Quintana Diez</h2>
+        <p class="author-role">PhD · LV · MSc — <span data-es="Fundador y CEO de Wairua Veterinary Precision Medicine, S.L.U." data-en="Founder & CEO, Wairua Veterinary Precision Medicine, S.L.U.">Fundador y CEO de Wairua Veterinary Precision Medicine, S.L.U.</span></p>
+        <p data-es="Veterinario clínico en Galicia, dedicado a la medicina interna, la dermatología y la medicina del comportamiento. Wairua Scribe nace de la consulta: una herramienta hecha por un veterinario para que el tiempo vuelva al paciente." data-en="Clinical veterinarian in Galicia, Spain, working in internal medicine, dermatology and behavioural medicine. Wairua Scribe was born in the exam room: a tool built by a veterinarian so that time goes back to the patient.">Veterinario clínico en Galicia, dedicado a la medicina interna, la dermatología y la medicina del comportamiento. Wairua Scribe nace de la consulta: una herramienta hecha por un veterinario para que el tiempo vuelva al paciente.</p>
+        <a class="btn btn-ghost" href="mailto:gerqd79@gmail.com?subject=Wairua%20Scribe"><span>gerqd79@gmail.com</span> <i aria-hidden="true">→</i></a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <img src="logo-light.png" alt="Wairua" width="120" height="85">
+  <p>Wairua Scribe · <span data-es="Beta experimental, no validada clínicamente" data-en="Experimental beta, not clinically validated">Beta experimental, no validada clínicamente</span></p>
+  <nav class="legal-links">
+    <button type="button" data-dialog="dlg-privacy" data-es="Privacidad" data-en="Privacy">Privacidad</button>
+    <button type="button" data-dialog="dlg-cookies" data-es="Cookies" data-en="Cookies">Cookies</button>
+    <button type="button" data-dialog="dlg-security" data-es="Seguridad" data-en="Security">Seguridad</button>
+    <button type="button" data-dialog="dlg-legal" data-es="Aviso legal" data-en="Legal notice">Aviso legal</button>
+    <a href="mailto:gerqd79@gmail.com?subject=Wairua%20Scribe" data-es="Contacto" data-en="Contact">Contacto</a>
+  </nav>
+  <p class="fine">© 2026 Wairua Veterinary Precision Medicine, S.L.U. · <span data-es="Desarrollado por Germán Quintana Diez" data-en="Developed by Germán Quintana Diez">Desarrollado por Germán Quintana Diez</span></p>
+</footer>
+
+<!-- Aviso de cookies (informativo: no se usan cookies de seguimiento) -->
+<div class="cookie-bar" id="cookie-bar" hidden role="region" aria-label="Cookies">
+  <p data-es="🍪 Esta web <b>no usa cookies</b> ni rastreadores. Solo guarda en tu navegador el idioma elegido y los modelos descargados, imprescindibles para que funcione." data-en="🍪 This site uses <b>no cookies</b> or trackers. It only stores your chosen language and downloaded models in your browser, which it needs to work.">🍪 Esta web <b>no usa cookies</b> ni rastreadores. Solo guarda en tu navegador el idioma elegido y los modelos descargados, imprescindibles para que funcione.</p>
+  <div>
+    <button type="button" class="chip" data-dialog="dlg-cookies" data-es="Más información" data-en="Learn more">Más información</button>
+    <button type="button" class="chip chip-solid" id="cookie-ok" data-es="Entendido" data-en="Got it">Entendido</button>
+  </div>
+</div>
+
+<!-- ============ TEXTOS LEGALES ============ -->
+<dialog class="legal" id="dlg-privacy">
+  <button class="dlg-close" type="button" aria-label="Cerrar">✕</button>
+  <h2>Política de privacidad</h2>
+  <p class="fine">Última actualización: 14 de noviembre de 2026 · <span lang="en">Legal texts are provided in Spanish.</span></p>
+  <h3>Responsable</h3>
+  <p>Wairua Veterinary Precision Medicine, S.L.U. · CIF: [pendiente] · Domicilio: [pendiente] · Contacto: <a href="mailto:gerqd79@gmail.com">gerqd79@gmail.com</a>.</p>
+  <h3>Qué datos tratamos</h3>
+  <p><b>Ninguno de tu audio ni de tus transcripciones.</b> El archivo o la grabación se procesan íntegramente en tu navegador y no se envían a Wairua ni a terceros. El texto solo existe en tu pantalla hasta que lo copias, lo descargas o cierras la página.</p>
+  <p>Wairua Scribe no tiene cuentas de usuario, formularios ni analítica. Si nos escribes por correo electrónico, trataremos tu dirección y tu mensaje solo para responderte (base jurídica: tu consentimiento y nuestro interés legítimo en atender consultas), y los conservaremos el tiempo necesario para ello.</p>
+  <h3>Terceros que intervienen</h3>
+  <ul>
+    <li><b>Hugging Face</b> sirve el modelo de reconocimiento de voz en el primer uso. Como en cualquier descarga, recibe tu dirección IP y datos técnicos del navegador; nunca tu audio.</li>
+    <li><b>Proveedor de alojamiento</b> de esta web: puede registrar datos técnicos de acceso (IP, fecha y página) por seguridad, como cualquier servidor web.</li>
+  </ul>
+  <h3>Tus derechos</h3>
+  <p>Puedes ejercer los derechos de acceso, rectificación, supresión, oposición, limitación y portabilidad escribiendo a <a href="mailto:gerqd79@gmail.com">gerqd79@gmail.com</a>, y reclamar ante la Agencia Española de Protección de Datos (<a href="https://www.aepd.es" target="_blank" rel="noopener">aepd.es</a>).</p>
+  <h3>Grabaciones de consultas</h3>
+  <p>Si usas la herramienta en tu clínica, <b>tú eres responsable</b> de informar a los propietarios y al personal y de contar con base jurídica para grabar, así como de custodiar el texto resultante conforme al RGPD y a la LOPDGDD.</p>
+</dialog>
+
+<dialog class="legal" id="dlg-cookies">
+  <button class="dlg-close" type="button" aria-label="Cerrar">✕</button>
+  <h2>Política de cookies</h2>
+  <p><b>Esta web no utiliza cookies</b>, ni propias ni de terceros, ni herramientas de analítica, publicidad o seguimiento.</p>
+  <p>Para funcionar guarda en tu navegador, sin enviarla a ningún servidor, la siguiente información técnica:</p>
+  <table class="dlg-table">
+    <thead><tr><th>Elemento</th><th>Tipo</th><th>Finalidad</th><th>Duración</th></tr></thead>
+    <tbody>
+      <tr><td><code>scribe-lang</code></td><td>localStorage</td><td>Recordar el idioma elegido (ES/EN)</td><td>Hasta que lo borres</td></tr>
+      <tr><td><code>scribe-cookies-ok</code></td><td>localStorage</td><td>No volver a mostrar este aviso</td><td>Hasta que lo borres</td></tr>
+      <tr><td><code>transformers-cache</code></td><td>Cache Storage</td><td>Guardar los modelos descargados para no repetir la descarga</td><td>Hasta que lo borres</td></tr>
+    </tbody>
+  </table>
+  <p>Son elementos estrictamente necesarios para prestar el servicio que solicitas y, por tanto, no requieren consentimiento (art. 22.2 de la LSSI). Puedes eliminarlos desde la configuración de tu navegador («Borrar datos de navegación») o con el botón «Borrar modelos descargados» del panel de diagnóstico.</p>
+</dialog>
+
+<dialog class="legal" id="dlg-security">
+  <button class="dlg-close" type="button" aria-label="Cerrar">✕</button>
+  <h2>Seguridad</h2>
+  <ul>
+    <li><b>Procesamiento local:</b> el audio nunca sale del navegador. La transcripción se ejecuta en un Web Worker aislado.</li>
+    <li><b>Sin almacenamiento en servidor:</b> no hay base de datos, cuentas ni copias de tus transcripciones.</li>
+    <li><b>Conexión segura:</b> la aplicación solo funciona en HTTPS o en <code>localhost</code>, como exigen los navegadores para usar la GPU y el micrófono.</li>
+    <li><b>Dependencias:</b> la biblioteca de transcripción y su motor se sirven desde este mismo sitio; el modelo se descarga de Hugging Face por HTTPS.</li>
+    <li><b>Tu equipo cuenta:</b> mantén actualizados el sistema operativo y el navegador, usa un perfil de navegador sin extensiones innecesarias en la clínica y bloquea la pantalla cuando no estés.</li>
+  </ul>
+  <p>Si detectas una vulnerabilidad, escríbenos a <a href="mailto:gerqd79@gmail.com?subject=Seguridad%20Wairua%20Scribe">gerqd79@gmail.com</a>. Agradecemos la divulgación responsable.</p>
+</dialog>
+
+<dialog class="legal" id="dlg-legal">
+  <button class="dlg-close" type="button" aria-label="Cerrar">✕</button>
+  <h2>Aviso legal</h2>
+  <p><b>Titular:</b> Wairua Veterinary Precision Medicine, S.L.U. · CIF: [pendiente] · Domicilio: [pendiente] · Datos registrales: [pendiente] · Contacto: <a href="mailto:gerqd79@gmail.com">gerqd79@gmail.com</a>.</p>
+  <p><b>Desarrollo:</b> Germán Quintana Diez.</p>
+  <p><b>Naturaleza del servicio:</b> Wairua Scribe es una versión beta experimental y gratuita de transcripción automática. No es un producto sanitario, no está validada clínicamente y no ofrece diagnóstico ni recomendaciones terapéuticas.</p>
+  <p><b>Responsabilidad:</b> las transcripciones pueden contener errores, omisiones o texto inexistente en el audio. El usuario debe revisarlas y validarlas antes de cualquier uso clínico o legal. Wairua no se responsabiliza de las decisiones tomadas a partir de transcripciones no revisadas.</p>
+  <p><b>Propiedad intelectual:</b> la marca, el logotipo y el diseño de Wairua pertenecen a su titular. Los modelos Whisper (OpenAI, licencia MIT), Transformers.js (Hugging Face, Apache 2.0), ONNX Runtime (Microsoft, MIT) y las tipografías Instrument Serif e Inter (SIL OFL) se usan conforme a sus licencias.</p>
+</dialog>
+
+<script type="module" src="soundscape.js"></script>
+<script type="module" src="app.js"></script>
+<script type="module" src="live.js"></script>
+<script type="module" src="gate.js"></script>
+</body>
+</html>
