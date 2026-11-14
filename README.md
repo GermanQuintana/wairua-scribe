@@ -6,7 +6,7 @@ Transcripción de audio en el propio navegador con Whisper (Transformers.js 3.8.
 
 La web se publica desde la rama `main` con GitHub Pages (HTTPS, necesario para WebGPU y el micrófono).
 
-**Beta por invitación:** la presentación es pública; el estudio y «En directo» se desbloquean con un código personal (`gate.js` guarda solo hashes SHA-256 con sal). Es un filtro de acceso a la beta, no seguridad real: el audio nunca sale del navegador. Para invalidar un código, borra su hash de `gate.js` y vuelve a publicar. **La lista de códigos no está en el repositorio:** guárdala aparte. La web incluye `noindex` y `robots.txt` para que no aparezca en buscadores.
+**Acceso:** ahora mismo la beta está **abierta a quien tenga el enlace** (`GATE_ENABLED = false` en `gate.js`). Para volver a pedir código de invitación: pon `true` y restaura en `index.html` el script de bloqueo inicial. Con el código activado, la presentación es pública; el estudio y «En directo» se desbloquean con un código personal (`gate.js` guarda solo hashes SHA-256 con sal). Es un filtro de acceso a la beta, no seguridad real: el audio nunca sale del navegador. Para invalidar un código, borra su hash de `gate.js` y vuelve a publicar. **La lista de códigos no está en el repositorio:** guárdala aparte. La web incluye `noindex` y `robots.txt` para que no aparezca en buscadores.
 
 ## Arrancar
 

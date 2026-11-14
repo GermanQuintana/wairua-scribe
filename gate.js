@@ -5,6 +5,10 @@
 // nunca sale del navegador, así que no hay datos que proteger en un servidor.
 // Para retirar un código, borra su hash y vuelve a publicar.
 
+// Interruptor: false = acceso libre con el enlace (beta abierta por enlace).
+// Ponlo a true para volver a exigir código de invitación.
+const GATE_ENABLED = false;
+
 const SALT = 'wairua-scribe-beta-2026';
 const VALID = new Set([
   'be091136b62fe1d961bb5f690b009b5fc20e2b51f9ed0dad0e6dd8d8a9f73fe0',
@@ -61,7 +65,7 @@ const lock = () => document.documentElement.classList.add('locked');
 
 let saved = null;
 try { saved = localStorage.getItem(KEY); } catch {}
-if (saved && VALID.has(saved)) unlock(); else lock();
+if (!GATE_ENABLED || (saved && VALID.has(saved))) unlock(); else lock();
 
 document.querySelectorAll('.invite-form').forEach(form => form.addEventListener('submit', async e => {
   e.preventDefault();
