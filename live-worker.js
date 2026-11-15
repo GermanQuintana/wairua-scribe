@@ -37,12 +37,18 @@ async function gpuOK() {
 async function load({ model, proc }) {
   const { pipeline } = await getLib();
   device = proc !== 'wasm' && await gpuOK() ? 'webgpu' : 'wasm';
+  let cached = false;
+  try {
+    const need = device === 'webgpu' ? ['encoder_model.onnx', 'decoder_model_merged_q4.onnx'] : ['encoder_model_quantized.onnx', 'decoder_model_merged_quantized.onnx'];
+    const urls = (await (await caches.open('transformers-cache')).keys()).map(r => r.url);
+    cached = need.every(f => urls.some(u => u.includes('/' + model + '/') && u.endsWith('/onnx/' + f)));
+  } catch {}
   const files = new Map();
   const progress_callback = p => {
     if (p.status === 'progress' && p.file) {
       files.set(p.file, { l: p.loaded || 0, t: p.total || 0 });
       let l = 0, t = 0; for (const f of files.values()) { l += f.l; t += f.t; }
-      post('progress', { pct: t ? l / t * 100 : 0, loaded: l, total: t });
+      post('progress', { pct: t ? l / t * 100 : 0, loaded: l, total: t, cached });
     }
   };
   const dtype = device === 'webgpu' ? { encoder_model: 'fp32', decoder_model_merged: 'q4' } : 'q8';

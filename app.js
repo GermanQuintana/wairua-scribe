@@ -3,6 +3,31 @@ import { getSharedEngine } from './live-engine.js';
 const $ = id => document.getElementById(id);
 const $$ = sel => [...document.querySelectorAll(sel)];
 
+// iPhone/iPad (incluido el iPad en modo escritorio) y Android. En iOS todos
+// los navegadores (Safari, Chrome, Firefox) usan el motor de Safari y la
+// pestaña tiene un límite de memoria estricto: si se supera, iOS la recarga.
+const UA = navigator.userAgent;
+const IS_IOS = /iPhone|iPad|iPod/.test(UA) || (/Macintosh/.test(UA) && navigator.maxTouchPoints > 1);
+const IS_MOBILE = IS_IOS || /Android/.test(UA);
+const TINY = 'onnx-community/whisper-tiny', SMALL = 'onnx-community/whisper-small';
+
+/* Pequeño almacén en IndexedDB: guarda la última grabación para poder
+   recuperarla si el navegador recarga la página a mitad de transcripción. */
+let dbP = null;
+const db = () => dbP ||= new Promise((res, rej) => {
+  const r = indexedDB.open('wairua-scribe', 1);
+  r.onupgradeneeded = () => r.result.createObjectStore('kv');
+  r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+});
+async function kv(mode, key, val) {
+  const d = await db();
+  return new Promise((res, rej) => {
+    const tx = d.transaction('kv', mode), st = tx.objectStore('kv');
+    const rq = mode === 'readonly' ? st.get(key) : val === undefined ? st.delete(key) : st.put(val, key);
+    tx.oncomplete = () => res(rq.result); tx.onerror = () => rej(tx.error);
+  });
+}
+
 /* ============================================================
    Idioma de la interfaz
    ============================================================ */
@@ -128,7 +153,9 @@ const recHandlers = {
   onMetrics: () => {},
   onProgress: m => {
     $('progress-wrap').hidden = false;
-    setBar(m.pct, m.total ? T(`Descargando modelo · ${fmtMB(m.loaded)} de ${fmtMB(m.total)} (sigue grabando)`, `Downloading model · ${fmtMB(m.loaded)} of ${fmtMB(m.total)} (still recording)`) : T('Cargando modelo…', 'Loading model…'));
+    setBar(m.pct, m.cached
+      ? T('Cargando el modelo guardado en este dispositivo (sigue grabando)…', 'Loading the model saved on this device (still recording)…')
+      : m.total ? T(`Descargando modelo (solo la primera vez) · ${fmtMB(m.loaded)} de ${fmtMB(m.total)} (sigue grabando)`, `Downloading model (first time only) · ${fmtMB(m.loaded)} of ${fmtMB(m.total)} (still recording)`) : T('Cargando modelo…', 'Loading model…'));
   },
   onWarming: d => { $('progress-wrap').hidden = false; setBar(null, T('Preparando el motor en directo…', 'Preparing live engine…')); $('device-tag').textContent = d === 'webgpu' ? '⚡ WebGPU' : '◐ CPU · WASM'; },
   onReady: d => {
@@ -160,6 +187,18 @@ function stopRecLive() {
 }
 
 // --- Grabadora ---
+let lastRecording = null;
+$('rec-save').addEventListener('click', async () => {
+  const f = lastRecording; if (!f) return;
+  // En el móvil abre la hoja de compartir (Guardar en Archivos, AirDrop…)
+  try { if (IS_MOBILE && navigator.canShare?.({ files: [f] })) { await navigator.share({ files: [f] }); return; } }
+  catch (e) { if (e.name === 'AbortError') return; }
+  const url = URL.createObjectURL(f);
+  const a = Object.assign(document.createElement('a'), { href: url, download: f.name });
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+});
+
 let recorder = null, recChunks = [], recStream = null, recStart = 0, recTimer = null, meterRAF = 0, analyser = null, recCtx = null;
 const meter = $('meter'), mctx = meter.getContext('2d');
 
@@ -210,6 +249,9 @@ $('rec').addEventListener('click', async () => {
     const stamp = new Date().toISOString().slice(0, 16).replace('T', '_').replace(':', '-');
     const file = new File(recChunks, `grabacion_${stamp}.${ext}`, { type });
     selectFile(file);
+    lastRecording = file;
+    $('rec-save').hidden = false;
+    kv('readwrite', 'last-recording', { blob: file, name: file.name, type }).catch(() => {});
     $('rec-label').textContent = T('Grabación lista. Pulsa «Transcribir».', 'Recording ready. Press “Transcribe”.');
     if (hadLive && chunks.length) setStatus(T('Texto en directo listo. Si quieres una versión más precisa, pulsa «Transcribir»: hará una segunda pasada completa y sustituirá este texto.', 'Live text ready. For a more accurate version press “Transcribe”: it runs a full second pass and replaces this text.'), 'ok');
     else if (hadLive) setStatus(T('El modelo no llegó a cargarse a tiempo. Pulsa «Transcribir» para transcribir la grabación.', 'The model did not load in time. Press “Transcribe” to transcribe the recording.'));
@@ -286,6 +328,7 @@ function setBusy(on) {
     timer = setInterval(() => $('elapsed').textContent = fmtClock((Date.now() - startedAt) / 1000), 500);
     navigator.wakeLock?.request('screen').then(l => wakeLock = l).catch(() => {});
   } else {
+    try { localStorage.removeItem('scribe-running'); } catch {}
     clearInterval(timer);
     wakeLock?.release().catch(() => {}); wakeLock = null;
   }
@@ -328,11 +371,13 @@ function newWorker() {
     switch (m.type) {
       case 'stage':
         $('device-tag').textContent = m.device === 'webgpu' ? '⚡ WebGPU' : '◐ CPU · WASM';
-        if (m.stage === 'load') setBar(null, STAGES.load(m.device));
+        if (m.stage === 'load') setBar(null, m.cached ? T(`Cargando el modelo guardado en este dispositivo (${m.device === 'webgpu' ? 'GPU' : 'CPU'})…`, `Loading the model saved on this device (${m.device === 'webgpu' ? 'GPU' : 'CPU'})…`) : STAGES.load(m.device));
         if (m.stage === 'transcribe') setBar(0, STAGES.transcribe());
         break;
       case 'load-progress':
-        if (m.total) setBar(m.progress, T(`Descargando modelo · ${fmtMB(m.loaded)} de ${fmtMB(m.total)}`, `Downloading model · ${fmtMB(m.loaded)} of ${fmtMB(m.total)}`));
+        if (m.total) setBar(m.progress, m.cached
+          ? T('Cargando el modelo guardado en este dispositivo…', 'Loading the model saved on this device…')
+          : T(`Descargando modelo (solo la primera vez) · ${fmtMB(m.loaded)} de ${fmtMB(m.total)}`, `Downloading model (first time only) · ${fmtMB(m.loaded)} of ${fmtMB(m.total)}`));
         break;
       case 'notice':
         setStatus({
@@ -378,7 +423,11 @@ $('start').addEventListener('click', async () => {
   if (!window.isSecureContext) { setStatus(T('Se necesita HTTPS o localhost para transcribir.', 'HTTPS or localhost is required.'), 'error'); return; }
   if (!selectedFile) { setStatus(T('Elige un archivo o graba un audio primero.', 'Choose a file or record audio first.'), 'error'); return; }
 
-  if (!liveEngine.running) liveEngine.dispose(); // libera memoria: la pasada completa usa su propio motor
+  // En móvil (o con Small) se libera el motor en directo para no tener dos
+  // modelos en memoria. En ordenador se conserva: así la siguiente grabación
+  // no tiene que volver a cargarlo.
+  const modelSel = document.querySelector('input[name=model]:checked').value;
+  if (!liveEngine.running && (IS_MOBILE || modelSel === SMALL)) liveEngine.dispose();
   chunks = []; $('result').value = ''; updateCount();
   setBusy(true);
   setStatus('');
@@ -396,10 +445,17 @@ $('start').addEventListener('click', async () => {
   if (audio.length / 16000 > 3600) setStatus(T('Audio largo: puede tardar bastante. Mantén esta pestaña abierta.', 'Long audio: this may take a while. Keep this tab open.'));
 
   if (!worker) newWorker();
-  const model = document.querySelector('input[name=model]:checked').value;
-  // copia propia del buffer para transferirlo sin coste al worker
-  const copy = new Float32Array(audio);
-  worker.postMessage({ type: 'transcribe', audio: copy, model, language: $('language').value, processor: ($('processor').value === 'auto' && device && !device.gpuReady) ? 'wasm' : $('processor').value }, [copy.buffer]);
+  const model = modelSel;
+  const processor = ($('processor').value === 'auto' && device && !device.gpuReady) ? 'wasm' : $('processor').value;
+  try {
+    localStorage.setItem('scribe-running', JSON.stringify({
+      model, gpu: processor !== 'wasm' && !!device?.gpuReady, rec: !!lastRecording && selectedFile === lastRecording, t: Date.now(),
+    }));
+  } catch {}
+  // en móvil se transfiere el buffer original (sin copia) para ahorrar memoria
+  const copy = IS_MOBILE ? audio : new Float32Array(audio);
+  audio = null;
+  worker.postMessage({ type: 'transcribe', audio: copy, model, language: $('language').value, processor }, [copy.buffer]);
 });
 
 $('cancel').addEventListener('click', () => {
@@ -442,7 +498,10 @@ function detectBrowser() {
   const brands = navigator.userAgentData?.brands || [];
   const brand = n => brands.find(x => x.brand === n);
   let name = T('Desconocido', 'Unknown'), ver = '';
-  if (brand('Microsoft Edge')) { name = 'Edge'; ver = brand('Microsoft Edge').version; }
+  if (/FxiOS\/(\d+)/.test(ua)) { name = 'Firefox'; ver = RegExp.$1; }
+  else if (/CriOS\/(\d+)/.test(ua)) { name = 'Chrome'; ver = RegExp.$1; }
+  else if (/EdgiOS\/(\d+)/.test(ua)) { name = 'Edge'; ver = RegExp.$1; }
+  else if (brand('Microsoft Edge')) { name = 'Edge'; ver = brand('Microsoft Edge').version; }
   else if (brand('Opera')) { name = 'Opera'; ver = brand('Opera').version; }
   else if (brand('Brave')) { name = 'Brave'; ver = brand('Brave').version; }
   else if (brand('Google Chrome')) { name = 'Chrome'; ver = brand('Google Chrome').version; }
@@ -450,10 +509,10 @@ function detectBrowser() {
   else if (/Firefox\/(\d+)/.test(ua)) { name = 'Firefox'; ver = RegExp.$1; }
   else if (/Chrome\/(\d+)/.test(ua)) { name = 'Chrome'; ver = RegExp.$1; }
   else if (/Version\/(\d+(?:\.\d+)?).*Safari/.test(ua)) { name = 'Safari'; ver = RegExp.$1; }
-  const os = /Android/.test(ua) ? 'Android' : /iPhone|iPad/.test(ua) ? 'iOS' : /Mac OS X/.test(ua) ? 'macOS'
+  const os = /Android/.test(ua) ? 'Android' : IS_IOS ? 'iOS' : /Mac OS X/.test(ua) ? 'macOS'
     : /Windows/.test(ua) ? 'Windows' : /Linux/.test(ua) ? 'Linux' : '';
   const chromium = brands.some(x => /Chromium|Chrome|Edge/.test(x.brand)) || /Chrome\//.test(ua);
-  return { name, ver, os, chromium, mobile: /Android|iPhone|iPad/.test(ua) };
+  return { name, ver, os, chromium: chromium && !IS_IOS, mobile: IS_MOBILE };
 }
 
 async function detectGPU() {
@@ -483,7 +542,9 @@ async function checkDevice() {
     mode = '—'; badge = T('Se necesita HTTPS', 'HTTPS required');
   } else if (gpu.adapter && !gpu.fallback) {
     state = 'ok'; title = T('Listo para GPU', 'GPU ready');
-    text = T('WebGPU está activo. Usa «Automático»; los modelos Base y Small irán con fluidez.', 'WebGPU is active. Use “Automatic”; Base and Small models will run smoothly.');
+    text = IS_MOBILE
+      ? T('WebGPU está activo. Usa «Automático» con Tiny o Base; Small queda reservado al ordenador por memoria.', 'WebGPU is active. Use “Automatic” with Tiny or Base; Small is reserved for computers because of memory.')
+      : T('WebGPU está activo. Usa «Automático»; los modelos Base y Small irán con fluidez.', 'WebGPU is active. Use “Automatic”; Base and Small models will run smoothly.');
     mode = T('Automático · GPU', 'Automatic · GPU'); badge = `${bname} · ${T('GPU lista', 'GPU ready')}`;
   } else if (gpu.adapter && gpu.fallback) {
     state = 'warn'; title = T('GPU solo por software', 'Software-only GPU');
@@ -599,4 +660,62 @@ $('cookie-ok').addEventListener('click', () => {
   $('cookie-bar').hidden = true;
 });
 
+/* ============================================================
+   Perfil móvil, preferencias y recuperación tras un cierre
+   ============================================================ */
+function setModel(v) { const r = document.querySelector(`input[name=model][value="${v}"]`); if (r && !r.disabled) r.checked = true; }
+if (IS_MOBILE) {
+  const small = document.querySelector(`input[name=model][value="${SMALL}"]`);
+  small.disabled = true;
+  if (small.checked) setModel('onnx-community/whisper-base');
+  const sm = small.nextElementSibling.querySelector('small');
+  sm.dataset.es = 'Solo en ordenador'; sm.dataset.en = 'Computer only';
+  $('rec-live').checked = false; // dos modelos a la vez agotan la memoria del móvil
+  $('file-hint').hidden = false;
+  const dt = $('drop-title'), ds = $('drop-sub');
+  dt.dataset.es = 'Toca para elegir tu audio o vídeo'; dt.dataset.en = 'Tap to choose your audio or video';
+  ds.dataset.es = 'MP3, M4A, WAV, OGG, WEBM, MP4…'; ds.dataset.en = 'MP3, M4A, WAV, OGG, WEBM, MP4…';
+}
+try {
+  const pm = localStorage.getItem('scribe-model'), pp = localStorage.getItem('scribe-proc');
+  if (pm) setModel(pm);
+  if (pp && [...$('processor').options].some(o => o.value === pp)) $('processor').value = pp;
+} catch {}
+$$('input[name=model]').forEach(r => r.addEventListener('change', () => { try { localStorage.setItem('scribe-model', r.value); } catch {} }));
+$('processor').addEventListener('change', () => { try { localStorage.setItem('scribe-proc', $('processor').value); } catch {} });
+
+async function recoverFromCrash() {
+  let run = null;
+  try { run = JSON.parse(localStorage.getItem('scribe-running') || 'null'); localStorage.removeItem('scribe-running'); } catch {}
+  if (!run || Date.now() - run.t > 3 * 3600e3) return;
+  // La página se recargó en plena transcripción: casi siempre, falta de memoria.
+  // Se baja un escalón y se recuerda para la próxima vez.
+  let change;
+  if (run.gpu) {
+    $('processor').value = 'wasm';
+    change = T('He cambiado a «Solo CPU», que usa menos memoria (irá más despacio).', 'I switched to “CPU only”, which uses less memory (it will be slower).');
+  } else if (run.model !== TINY) {
+    setModel(TINY);
+    change = T('He cambiado al modelo Tiny, el más ligero.', 'I switched to the Tiny model, the lightest one.');
+  } else change = T('Prueba con un audio más corto o divídelo en partes.', 'Try a shorter audio or split it into parts.');
+  try { localStorage.setItem('scribe-proc', $('processor').value); localStorage.setItem('scribe-model', document.querySelector('input[name=model]:checked').value); } catch {}
+  updateCacheMarks();
+  let msg = T('El navegador se quedó sin memoria y recargó la página. ', 'The browser ran out of memory and reloaded the page. ') + change;
+  if (run.rec) {
+    try {
+      const r = await kv('readonly', 'last-recording');
+      if (r?.blob) {
+        lastRecording = new File([r.blob], r.name, { type: r.type });
+        $$('.tab').find(t => t.dataset.tab === 'file')?.click();
+        selectFile(lastRecording);
+        $('rec-save').hidden = false;
+        msg += T(' Tu grabación se ha recuperado: pulsa «Transcribir».', ' Your recording was recovered: press “Transcribe”.');
+      }
+    } catch {}
+  }
+  setStatus(msg, 'error');
+  setTimeout(() => $('start').scrollIntoView({ behavior: 'smooth', block: 'center' }), 400);
+}
+
 applyLang();
+recoverFromCrash();

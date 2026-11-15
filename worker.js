@@ -51,10 +51,24 @@ async function hasWebGPU() {
   } catch { return false; }
 }
 
+// ¿Están ya los archivos del modelo en la caché del navegador? Sirve para
+// decir «cargando desde este dispositivo» en vez de «descargando».
+async function isCached(model, device) {
+  try {
+    const files = device === 'webgpu'
+      ? ['encoder_model.onnx', 'decoder_model_merged_q4.onnx']
+      : ['encoder_model_quantized.onnx', 'decoder_model_merged_quantized.onnx'];
+    const urls = (await (await caches.open('transformers-cache')).keys()).map(r => r.url);
+    return files.every(f => urls.some(u => u.includes('/' + model + '/') && u.endsWith('/onnx/' + f)));
+  } catch { return false; }
+}
+
 async function load(model, device) {
   const key = model + '|' + device;
-  if (transcriber && loadedKey === key) return;
+  if (transcriber && loadedKey === key) return; // ya en memoria: no se vuelve a cargar
   if (transcriber) { try { await transcriber.dispose(); } catch {} transcriber = null; loadedKey = ''; }
+  const cached = await isCached(model, device);
+  post('stage', { stage: 'load', device, cached });
 
   const { pipeline } = await getLib();
   const files = new Map();
@@ -63,7 +77,7 @@ async function load(model, device) {
       files.set(p.file, { loaded: p.loaded || 0, total: p.total || 0 });
       let l = 0, t = 0;
       for (const f of files.values()) { l += f.loaded; t += f.total; }
-      post('load-progress', { progress: t ? (l / t) * 100 : 0, loaded: l, total: t });
+      post('load-progress', { progress: t ? (l / t) * 100 : 0, loaded: l, total: t, cached });
     } else if (p.status === 'ready') {
       post('load-progress', { progress: 100 });
     }
@@ -124,7 +138,6 @@ async function transcribe({ audio, model, language, processor }) {
   }
 
   // 2) Cargar modelo (con plan B en CPU)
-  post('stage', { stage: 'load', device });
   try {
     await load(model, device);
   } catch (e) {
@@ -133,7 +146,6 @@ async function transcribe({ audio, model, language, processor }) {
       console.warn('[Scribe] WebGPU falló al cargar, se usa CPU', e);
       post('notice', { code: 'gpu-load-failed', detail: String(e?.message || e) });
       device = 'wasm';
-      post('stage', { stage: 'load', device });
       await load(model, device);
     } else throw e;
   }
@@ -163,7 +175,6 @@ async function transcribe({ audio, model, language, processor }) {
       console.warn('[Scribe] WebGPU falló al transcribir, se reintenta en CPU', err);
       post('notice', { code: 'gpu-run-failed', detail: String(err?.message || err) });
       device = 'wasm';
-      post('stage', { stage: 'load', device });
       await load(model, device);
       post('stage', { stage: 'transcribe', device, blocks: blocks.length, duration });
       out = await transcriber(seg, opts);

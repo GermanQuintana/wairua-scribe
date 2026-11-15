@@ -414,3 +414,8 @@ html.locked .studio,html.locked #live .live-grid,html.locked #work .diag{filter:
 @keyframes shake{20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
 .invite-mail{display:inline-block;margin-top:14px;font-size:13.5px;color:var(--cyan);text-decoration:none;border-bottom:1px solid transparent}
 .invite-mail:hover{border-color:var(--cyan)}
+
+/* --- Móvil: avisos y opciones desactivadas --- */
+.mobile-hint { margin-top: .8rem; line-height: 1.5; }
+.rec-save { margin-top: .6rem; }
+.seg label:has(input:disabled) { opacity: .45; cursor: not-allowed; }
