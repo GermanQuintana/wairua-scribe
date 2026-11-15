@@ -523,7 +523,7 @@ async function detectGPU() {
     const info = a.info || (a.requestAdapterInfo ? await a.requestAdapterInfo() : {}) || {};
     const fallback = !!(info.isFallbackAdapter ?? a.isFallbackAdapter);
     const label = [info.vendor, info.architecture].filter(Boolean).join(' ') || info.description || T('GPU detectada', 'GPU detected');
-    return { api: true, adapter: true, fallback, label };
+    return { api: true, adapter: true, fallback, label, description: info.description || '', maxBuffer: a.limits?.maxBufferSize || 0, f16: !!a.features?.has?.('shader-f16') };
   } catch (e) { return { api: true, adapter: false, error: e.message }; }
 }
 
@@ -615,6 +615,32 @@ $('processor').addEventListener('change', updateCacheMarks);
 /* ============================================================
    Diagnóstico
    ============================================================ */
+let hwCache = null;
+async function hardwareInfo() {
+  if (hwCache) return hwCache;
+  const br = detectBrowser();
+  let hi = {};
+  try {
+    hi = await navigator.userAgentData?.getHighEntropyValues?.(['architecture', 'bitness', 'platformVersion', 'model']) || {};
+  } catch {}
+  // Sistema con versión (Windows 11 se distingue por platformVersion ≥ 13)
+  let system = br.os;
+  const pv = parseInt(hi.platformVersion || '0', 10);
+  if (br.os === 'Windows' && hi.platformVersion) system = pv >= 13 ? 'Windows 11' : 'Windows 10';
+  else if (br.os === 'macOS' && hi.platformVersion) system = 'macOS ' + hi.platformVersion.split('.').slice(0, 2).join('.');
+  else if (br.os === 'Android') system = 'Android ' + (hi.platformVersion || (UA.match(/Android ([\d.]+)/) || [])[1] || '');
+  else if (IS_IOS) system = 'iOS ' + ((UA.match(/OS (\d+)_(\d+)/) || []).slice(1, 3).join('.') || '');
+  // Arquitectura del procesador
+  let arch = '';
+  if (hi.architecture) arch = (hi.architecture === 'arm' ? 'ARM' : hi.architecture === 'x86' ? 'x86 (Intel/AMD)' : hi.architecture) + (hi.bitness ? ` · ${hi.bitness} bits` : '');
+  else if (IS_IOS) arch = T('Apple (ARM)', 'Apple (ARM)');
+  else if (/aarch64|arm64/i.test(UA)) arch = 'ARM · 64 bits';
+  else if (/x86_64|Win64|x64|amd64/i.test(UA)) arch = 'x86 (Intel/AMD) · 64 bits';
+  if (br.os === 'macOS' && hi.architecture === 'arm') arch = 'Apple Silicon (ARM) · 64 bits';
+  const cpu = (arch || T('arquitectura no informada', 'architecture not reported')) + T(' · el navegador no revela el modelo', ' · browsers do not reveal the model');
+  return hwCache = { system: system.trim(), model: hi.model || '', cpu };
+}
+
 async function renderDiagnostics() {
   const items = [];
   const add = (cls, label, value) => items.push(`<li><span class="${cls}">●</span><span><b>${label}:</b> ${value}</span></li>`);
@@ -622,13 +648,31 @@ async function renderDiagnostics() {
     location.protocol === 'file:' ? T('archivo local (no funcionará)', 'local file (will not work)') : window.isSecureContext ? T('seguro', 'secure') : T('no seguro: usa HTTPS', 'insecure: use HTTPS'));
   add(window.Worker ? 'ok' : 'bad', 'Web Workers', window.Worker ? T('disponibles', 'available') : T('no disponibles', 'unavailable'));
   if (device) add(device.gpuReady ? 'ok' : 'warn', 'WebGPU', device.gpuReady ? (device.gpu.label || T('activo', 'active')) : T('no disponible: se usará CPU', 'unavailable: CPU will be used'));
-  add('ok', T('Núcleos de CPU', 'CPU cores'), navigator.hardwareConcurrency || '?');
-  if (navigator.deviceMemory) add(navigator.deviceMemory < 4 ? 'warn' : 'ok', T('Memoria (aprox.)', 'Memory (approx.)'), `≥ ${navigator.deviceMemory} GB`);
+  // --- Equipo: lo que el navegador permite saber (por privacidad, nunca da
+  // el modelo exacto del procesador ni la RAM total precisa) ---
+  const hw = await hardwareInfo();
+  if (hw.system) add('ok', T('Sistema', 'System'), hw.system);
+  if (hw.model) add('ok', T('Modelo', 'Model'), hw.model);
+  add('ok', T('Procesador', 'Processor'), hw.cpu);
+  const cores = navigator.hardwareConcurrency;
+  add(cores && cores < 4 ? 'warn' : 'ok', T('Núcleos (hilos)', 'Cores (threads)'), cores
+    ? cores + (IS_IOS ? T(' · iOS no informa del número real', ' · iOS does not report the real number') : '')
+    : T('no informado', 'not reported'));
+  add(navigator.deviceMemory && navigator.deviceMemory < 4 ? 'warn' : 'ok', T('Memoria RAM', 'RAM'), navigator.deviceMemory
+    ? (navigator.deviceMemory >= 8 ? T('8 GB o más (el navegador no informa por encima de 8)', '8 GB or more (browsers do not report above 8)') : T(`unos ${navigator.deviceMemory} GB`, `about ${navigator.deviceMemory} GB`))
+    : T('este navegador no la informa (Safari y Firefox la ocultan)', 'not reported by this browser (Safari and Firefox hide it)'));
+  if (performance.memory?.jsHeapSizeLimit) add('ok', T('Memoria máx. para la página', 'Max. memory for the page'), fmtMB(performance.memory.jsHeapSizeLimit));
+  if (device?.gpu?.adapter) {
+    const g = device.gpu;
+    add(g.fallback ? 'warn' : 'ok', T('Tarjeta gráfica', 'Graphics'), [g.label, g.description && !g.label.includes(g.description) ? g.description : ''].filter(Boolean).join(' · '));
+    if (g.maxBuffer) add('ok', T('Bloque máx. de memoria GPU', 'Max. GPU memory block'), fmtMB(g.maxBuffer) + (g.f16 ? T(' · admite media precisión (fp16)', ' · supports half precision (fp16)') : ''));
+  }
+  if (!IS_MOBILE && window.screen) add('ok', T('Pantalla', 'Screen'), `${screen.width}×${screen.height}${devicePixelRatio > 1 ? ` · ×${devicePixelRatio}` : ''}`);
   try {
     const est = await navigator.storage?.estimate();
-    if (est) add('ok', T('Caché usada', 'Cache used'), fmtMB(est.usage || 0));
+    if (est) add('ok', T('Caché usada', 'Cache used'), fmtMB(est.usage || 0) + (est.quota ? T(` de ${fmtMB(est.quota)} disponibles`, ` of ${fmtMB(est.quota)} available`) : ''));
     const persisted = await navigator.storage?.persisted?.();
-    if (persisted != null) add(persisted ? 'ok' : 'warn', T('Almacenamiento', 'Storage'), persisted ? T('persistente (no se borra solo)', 'persistent (not auto-cleared)') : T('normal (Chrome podría liberarlo si falta espacio)', 'best-effort (may be cleared if disk is full)'));
+    if (persisted != null) add(persisted ? 'ok' : 'warn', T('Almacenamiento', 'Storage'), persisted ? T('persistente (no se borra solo)', 'persistent (not auto-cleared)') : T('normal (el navegador podría liberarlo si falta espacio)', 'best-effort (may be cleared if disk is full)'));
   } catch {}
   $('diag-list').innerHTML = items.join('');
 }
